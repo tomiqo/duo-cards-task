@@ -1,47 +1,48 @@
 import type { Card } from "../model/Card.ts";
 import * as React from "react";
+import {ignoredWords} from "../config/ignoredWords.ts";
 
-const IGNORED_PREFIXES = ["the", "to", "a", "an"];
+const normalize = (str: string) =>
+  str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+const findMatch = (hint: string, front: string) => {
+  const words = front.trim().split(' ')
+  const normalizedHint = normalize(hint)
+
+  for (let i = 0; i < words.length; i++) {
+    const testedPart = words.slice(i).join(' ')
+    const regex = new RegExp(`\\b${normalize(testedPart)}\\w*`, 'i' )
+    const match =normalizedHint.match(regex)
+
+    if (match && match.index !== undefined) {
+      return {
+        match: hint.slice(match.index, match.index + match[0].length),
+        index: match.index
+      };
+    }
+
+    if (!Object.values(ignoredWords).flat().includes(words[i].toLowerCase())) {
+      break
+    }
+  }
+}
 
 export const decorateHint = (card: Card): React.ReactElement => {
   if (!card.hint.length || !card.front.length) {
     return <span>{card.hint}</span>
   }
 
-  let cleanFront = card.front
-    .trim()
-    .toLowerCase()
+  const result = findMatch(card.hint, card.front)
 
-  for (const prefix of IGNORED_PREFIXES) {
-    if (cleanFront.startsWith(prefix + ' ')) {
-      cleanFront = cleanFront.substring(prefix.length + 1).trim();
-      break;
-    }
-  }
-
-  console.log(cleanFront);
-  cleanFront = cleanFront.replace(/[^\w\s-]/g, '');
-  console.log(cleanFront);
-
-
-  if (!cleanFront.length) {
+  if (!result) {
     return <span>{card.hint}</span>;
   }
 
-
-  const regex = new RegExp(`\\b${cleanFront}\\w*`, "gi");
-
-  const parts = card.hint.split(regex);
-  const matches = card.hint.match(regex) ?? [];
-
-
-  const decorated: (string | React.ReactElement)[] = [];
-  parts.forEach((part, i) => {
-    decorated.push(part);
-    if (matches[i]) {
-      decorated.push(<b key={i}>{matches[i]}</b>);
-    }
-  });
-
-  return <span>{decorated}</span>;
+  return (
+    <span>
+      {card.hint.slice(0, result.index)}
+      <b>{result.match}</b>
+      {card.hint.slice(result.index + result.match.length)}
+    </span>
+  );
 }

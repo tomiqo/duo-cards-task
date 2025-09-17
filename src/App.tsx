@@ -3,6 +3,7 @@ import cardsData from "./data/cardsList.json";
 import type {Card} from "./model/Card.ts";
 
 function App() {
+  // loaded directly with test data
   const cards: Card[] = cardsData.cards;
 
   return (
